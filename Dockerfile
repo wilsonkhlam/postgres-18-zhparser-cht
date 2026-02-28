@@ -33,14 +33,14 @@ RUN set -ex \
 
 # Build zhparser
 RUN set -ex \
-    && git clone --branch master --single-branch --depth 1 https://github.com/amutu/zhparser.git \
+    && git clone --branch v2.3 --single-branch --depth 1 https://github.com/amutu/zhparser.git \
     && cd zhparser \
     && make -j$(nproc) \
     && make install
 
-# Build pgvector (use version 0.8.0 for PostgreSQL 18 support)
+# Build pgvector (use version 0.8.2 for PostgreSQL 18 support)
 RUN set -ex \
-    && git clone --depth 1 https://github.com/pgvector/pgvector.git \
+    && git clone --branch v0.8.2 --single-branch --depth 1 https://github.com/pgvector/pgvector.git \
     && cd pgvector \
     && make -j$(nproc) \
     && make install
@@ -93,19 +93,18 @@ COPY --from=builder /usr/local/share/postgresql/extension/pg_trgm--*.sql /usr/lo
 # Copy SCWS dictionary files (includes Simplified Chinese by default)
 COPY --from=builder /usr/local/share/postgresql/tsearch_data/ /usr/local/share/postgresql/tsearch_data/
 
-# Download and install Traditional Chinese dictionary and rules (retries on network issues)
+# Copy pre-downloaded Traditional Chinese dictionary and rules
 # Note: Replaces the default Simplified Chinese dictionary with Traditional Chinese
+COPY scws-dict-cht-utf8.tar.bz2 rules.tgz /tmp/
 RUN set -ex \
-    && apk --no-cache add bzip2 wget \
-    && wget -O /tmp/scws-dict-cht-utf8.tar.bz2 "http://www.xunsearch.com/scws/down/scws-dict-cht-utf8.tar.bz2" \
-    && wget -O /tmp/scws-rules.tgz "http://www.xunsearch.com/scws/down/rules.tgz" \
+    && apk --no-cache add bzip2 \
     && cd /tmp \
     && tar xvjf scws-dict-cht-utf8.tar.bz2 \
-    && tar xvzf scws-rules.tgz \
+    && tar xvzf rules.tgz \
     && rm -f /usr/local/share/postgresql/tsearch_data/dict.utf8.xdb \
     && mv dict_cht.utf8.xdb /usr/local/share/postgresql/tsearch_data/dict.utf8.xdb \
     && mv rules_cht.utf8.ini /usr/local/share/postgresql/tsearch_data/rules.utf8.ini \
-    && rm -rf /tmp/scws-dict-cht-utf8.tar.bz2 /tmp/scws-rules.tgz /tmp/*.ini /tmp/*.xdb
+    && rm -rf /tmp/scws-dict-cht-utf8.tar.bz2 /tmp/rules.tgz /tmp/*.ini /tmp/*.xdb
 
 # Update library cache
 RUN ldconfig /usr/local/lib || true

@@ -137,11 +137,13 @@ docker buildx build --platform linux/amd64 -t postgres-18-zhparser-cht:amd64 .
 | Component | Version |
 |-----------|---------|
 | PostgreSQL | 18.x |
-| zhparser | latest (master) |
+| zhparser | v2.3 |
 | SCWS | 1.2.3 |
-| pgvector | latest (master) |
+| pgvector | v0.8.2 |
 | pg_trgm | REL_18_2 |
 | Dictionary | Traditional Chinese (cht.utf8) |
+
+All components use pinned versions for reproducible builds. Dictionary files are bundled in the repository for reliable builds without external network dependencies.
 
 ## License
 
