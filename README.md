@@ -130,6 +130,9 @@ docker build --no-cache -t postgres-18-zhparser-cht:latest .
 # Build for specific platform
 docker buildx build --platform linux/arm64 -t postgres-18-zhparser-cht:arm64 .
 docker buildx build --platform linux/amd64 -t postgres-18-zhparser-cht:amd64 .
+
+# Multi-arch build on MacOS
+docker buildx build --platform linux/arm64,linux.amd64 -t postgres-18-zhparser-cht:arm64 .
 ```
 
 ## Version Information
