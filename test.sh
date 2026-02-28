@@ -254,17 +254,70 @@ test_custom_dictionary() {
     else
         log_fail "Failed to add custom words"
     fi
-
-    # Note: sync requires write permission to /usr/local/share/postgresql/tsearch_data/
-    # This may fail in some environments but the table structure is correct
-    log_info "Custom dictionary structure verified (sync requires proper permissions)"
 }
 
 # ============================================
-# Test 8: Vector similarity (pgvector)
+# Test 8: Custom dictionary sync (permission validation)
+# ============================================
+test_custom_dictionary_sync() {
+    log_info "Test 8: Testing custom dictionary sync and directory permissions..."
+
+    # Check directory permissions for tsearch_data
+    # The postgres user must have write access to this directory for sync to work
+    local dir_perms=$(docker exec "$CONTAINER_NAME" ls -ld /usr/local/share/postgresql/tsearch_data/ 2>/dev/null)
+
+    if [ -n "$dir_perms" ]; then
+        log_info "tsearch_data directory: $dir_perms"
+
+        # Check if directory is owned by postgres user
+        local owner=$(echo "$dir_perms" | awk '{print $3}')
+        if [ "$owner" = "postgres" ]; then
+            log_pass "tsearch_data directory is owned by postgres user"
+        else
+            log_info "Directory owner is: $owner (expected: postgres)"
+        fi
+    else
+        log_fail "Could not check tsearch_data directory permissions"
+    fi
+
+    # Check if postgres user can write to the directory
+    local can_write=$(docker exec "$CONTAINER_NAME" su - postgres -c "test -w /usr/local/share/postgresql/tsearch_data/ && echo 'yes' || echo 'no'" 2>/dev/null)
+
+    if [ "$can_write" = "yes" ]; then
+        log_pass "postgres user has write permission to tsearch_data directory"
+    else
+        log_fail "postgres user does NOT have write permission to tsearch_data directory - sync_zhprs_custom_word() will fail"
+    fi
+
+    # Actually test the sync function - this is the critical test
+    # This will fail if the directory permissions are incorrect
+    local sync_result=$(run_sql "SELECT sync_zhprs_custom_word();" 2>&1)
+    local sync_exit=$?
+
+    # The function returns empty on success, error message on failure
+    if [ $sync_exit -eq 0 ]; then
+        log_pass "sync_zhprs_custom_word() executed successfully"
+    else
+        log_fail "sync_zhprs_custom_word() failed - check directory permissions for /usr/local/share/postgresql/tsearch_data/"
+        log_info "Error: $sync_result"
+        log_info "Fix: Add 'RUN chown -R postgres:postgres /usr/local/share/postgresql/tsearch_data/' to Dockerfile"
+    fi
+
+    # Verify the custom dictionary file was created
+    local dict_file=$(docker exec "$CONTAINER_NAME" test -f /usr/local/share/postgresql/tsearch_data/zh_custom.txt && echo "exists" || echo "missing")
+
+    if [ "$dict_file" = "exists" ]; then
+        log_pass "Custom dictionary file zh_custom.txt was created"
+    else
+        log_fail "Custom dictionary file zh_custom.txt was NOT created"
+    fi
+}
+
+# ============================================
+# Test 9: Vector similarity (pgvector)
 # ============================================
 test_vector_search() {
-    log_info "Test 8: Testing vector similarity search..."
+    log_info "Test 9: Testing vector similarity search..."
 
     # Create table with vector column
     run_sql "CREATE TABLE test_vectors (id SERIAL PRIMARY KEY, content TEXT, embedding vector(3));"
@@ -289,10 +342,10 @@ test_vector_search() {
 }
 
 # ============================================
-# Test 9: Trigram search (pg_trgm)
+# Test 10: Trigram search (pg_trgm)
 # ============================================
 test_trigram_search() {
-    log_info "Test 9: Testing trigram fuzzy search..."
+    log_info "Test 10: Testing trigram fuzzy search..."
 
     # Create test table
     run_sql "CREATE TABLE test_names (id SERIAL PRIMARY KEY, name TEXT);"
@@ -317,10 +370,10 @@ test_trigram_search() {
 }
 
 # ============================================
-# Test 10: Complex Chinese text
+# Test 11: Complex Chinese text
 # ============================================
 test_complex_chinese() {
-    log_info "Test 10: Testing complex Chinese text handling..."
+    log_info "Test 11: Testing complex Chinese text handling..."
 
     # Test with mixed Traditional/Simplified and punctuation
     local complex_text='這是一個關於「人工智能」的測試文章。文章包含繁體字和简体字，還有標點符號！'
@@ -358,6 +411,7 @@ main() {
     test_segmentation
     test_fulltext_search
     test_custom_dictionary
+    test_custom_dictionary_sync
     test_vector_search
     test_trigram_search
     test_complex_chinese

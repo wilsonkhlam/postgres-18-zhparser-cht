@@ -93,6 +93,11 @@ COPY --from=builder /usr/local/share/postgresql/extension/pg_trgm--*.sql /usr/lo
 # Copy SCWS dictionary files (includes Simplified Chinese by default)
 COPY --from=builder /usr/local/share/postgresql/tsearch_data/ /usr/local/share/postgresql/tsearch_data/
 
+# Fix permissions for custom dictionary sync
+# sync_zhprs_custom_word() writes to /usr/local/share/postgresql/tsearch_data/zh_custom.txt
+# PostgreSQL runs as postgres user, so change ownership accordingly
+RUN chown -R postgres:postgres /usr/local/share/postgresql/tsearch_data/
+
 # Copy pre-downloaded Traditional Chinese dictionary and rules
 # Note: Replaces the default Simplified Chinese dictionary with Traditional Chinese
 COPY scws-dict-cht-utf8.tar.bz2 rules.tgz /tmp/
