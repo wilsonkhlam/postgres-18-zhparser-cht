@@ -74,9 +74,33 @@ INSERT INTO zhparser.zhprs_custom_word (word) VALUES
     ('人工智能'),
     ('金融科技');
 
--- Sync the dictionary
+-- Sync the dictionary (writes to zh_custom.txt)
 SELECT sync_zhprs_custom_word();
 ```
+
+The `sync_zhprs_custom_word()` function writes to `/usr/local/share/postgresql/tsearch_data/zh_custom.txt`. The directory permissions are pre-configured so the `postgres` user can write to it.
+
+## Testing
+
+Run the test suite to validate the build:
+
+```bash
+# Run all tests
+./test.sh
+
+# Test specific image
+./test.sh my-image:tag
+```
+
+The test suite validates:
+- Docker image build
+- Extension installation (zhparser, pgvector, pg_trgm)
+- Chinese text search configuration
+- Word segmentation (Traditional and Simplified)
+- Full-text search with GIN index
+- Custom dictionary functionality (including sync permissions)
+- Vector similarity search
+- Trigram fuzzy search
 
 ### Vector Search (pgvector)
 
